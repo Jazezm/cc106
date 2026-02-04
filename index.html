@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Image Manager (GitHub)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 15px;
+        }
+
+        .config-panel {
+            background: var(--surface);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            font-weight: bold;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: var(--surface);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.9; }
+        button:disabled { background-color: #94a3b8; cursor: not-allowed; }
+        
+        #fileInput { display: none; }
+
+        #status-msg {
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            display: none;
+        }
+        .status-error { background-color: #fee2e2; color: var(--danger); border: 1px solid #fecaca; }
+        .status-success { background-color: #dcfce7; color: var(--success); border: 1px solid #bbf7d0; }
+        .status-info { background-color: #e0f2fe; color: var(--primary); border: 1px solid #bae6fd; }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            min-height: 0;
+        }
+
+        .file-list {
+            width: 250px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .file-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .file-item:hover { background-color: #f1f5f9; }
+        .file-item.active { background-color: #eff6ff; border-left: 3px solid var(--primary); }
+
+        .viewer {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            padding: 20px;
+        }
+
+        .viewer img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .empty-state {
+            color: #94a3b8;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="config-panel">
+        <div class="config-header" onclick="toggleConfig()">
+            <span>⚙️ Cloud Configuration (GitHub)</span>
+            <small>Click to toggle</small>
+        </div>
+        <div class="config-grid" id="configForm">
+            <input type="text" id="ghOwner" placeholder="Username (e.g., octocat)">
+            <input type="text" id="ghRepo" placeholder="Repository (e.g., my-notes)">
+            <input type="text" id="ghPath" placeholder="Folder Path (e.g., images)">
+        </div>
+    </div>
+
+    <div id="status-msg"></div>
+
+    <div class="toolbar">
+        <button onclick="loadImages()">🔄 Refresh List</button>
+        <button onclick="document.getElementById('fileInput').click()">➕ Add Image</button>
+        <input type="file" id="fileInput" accept="image/*" onchange="handleFileUpload(this)">
+        <span style="margin-left: auto; font-size: 0.9em; color: #64748b;" id="loadingIndicator"></span>
+    </div>
+
+    <div class="main-content">
+        <div class="file-list" id="fileList">
+            <div class="file-item" style="cursor: default; color: #94a3b8;">No images loaded.</div>
+        </div>
+
+        <div class="viewer" id="imageViewer">
+            <div class="empty-state">
+                <p>Select an image from the list or upload a new one.</p>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SECRET_TOKEN = "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"; 
+
+    let filesCache = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        ['ghOwner', 'ghRepo', 'ghPath'].forEach(id => {
+            const val = localStorage.getItem(id);
+            if (val) document.getElementById(id).value = val;
+        });
+    });
+
+    function toggleConfig() {
+        const form = document.getElementById('configForm');
+        form.style.display = form.style.display === 'none' ? 'grid' : 'none';
+    }
+
+    function showStatus(msg, type = 'info') {
+        const el = document.getElementById('status-msg');
+        el.textContent = msg;
+        el.className = `status-${type}`;
+        el.style.display = 'block';
+        
+        if(type === 'success') {
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+    }
+
+    function getConfig() {
+        const token = SECRET_TOKEN;
+        
+        const owner = document.getElementById('ghOwner').value.trim();
+        const repo = document.getElementById('ghRepo').value.trim();
+        let path = document.getElementById('ghPath').value.trim().replace(/^\/+|\/+$/g, ''); 
+        
+        localStorage.setItem('ghOwner', owner);
+        localStorage.setItem('ghRepo', repo);
+        localStorage.setItem('ghPath', path);
+
+        if (!token || token.includes('xxxx')) {
+            showStatus("Error: Token not configured in source code.", "error");
+            return null;
+        }
+
+        if (!owner || !repo) {
+            showStatus("Please fill in Owner and Repository fields.", "error");
+            return null;
+        }
+
+        return { token, owner, repo, path };
+    }
+
+    async function githubRequest(endpoint, method = 'GET', body = null) {
+        const cfg = getConfig();
+        if (!cfg) return null;
+
+        const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${cfg.path ? cfg.path + '/' : ''}${endpoint}`;
+        
+        const headers = {
+            'Authorization': `token ${cfg.token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+        };
+
+        const options = { method, headers };
+        if (body) options.body = JSON.stringify(body);
+
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || `HTTP ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(error);
+            showStatus(`Error: ${error.message}`, 'error');
+            return null;
+        }
+    }
+
+    async function loadImages() {
+        const indicator = document.getElementById('loadingIndicator');
+        indicator.textContent = "Fetching file list...";
+        
+        const data = await githubRequest('', 'GET');
+        indicator.textContent = "";
+
+        const listContainer = document.getElementById('fileList');
+        listContainer.innerHTML = '';
+
+        if (!data || !Array.isArray(data)) {
+            listContainer.innerHTML = '<div class="file-item">No files found or path invalid.</div>';
+            return;
+        }
+
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'];
+        filesCache = data.filter(file => 
+            file.type === 'file' && 
+            imageExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
+        );
+
+        if (filesCache.length === 0) {
+            listContainer.innerHTML = '<div class="file-item">No images in this folder.</div>';
+            return;
+        }
+
+        filesCache.forEach(file => {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.textContent = file.name;
+            div.onclick = () => displayImage(file);
+            listContainer.appendChild(div);
+        });
+
+        showStatus(`Loaded ${filesCache.length} images.`, 'success');
+    }
+
+    function displayImage(fileData) {
+        const viewer = document.getElementById('imageViewer');
+        
+        document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
+        Array.from(document.getElementById('fileList').children).forEach(el => {
+            if(el.textContent === fileData.name) el.classList.add('active');
+        });
+
+        viewer.innerHTML = `<img src="${fileData.download_url}" alt="${fileData.name}" title="${fileData.name}">`;
+    }
+
+    async function handleFileUpload(input) {
+        if (!input.files || input.files.length === 0) return;
+        
+        const file = input.files[0];
+        const fileName = file.name;
+        
+        const indicator = document.getElementById('loadingIndicator');
+        indicator.textContent = `Reading ${fileName}...`;
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const contentBase64 = e.target.result.split(',')[1];
+            
+            await uploadToCloud(fileName, contentBase64);
+            input.value = '';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function uploadToCloud(fileName, base64Content) {
+        const indicator = document.getElementById('loadingIndicator');
+        indicator.textContent = "Uploading to GitHub...";
+
+        let sha = null;
+        
+        try {
+            const existingFile = await githubRequest(fileName, 'GET');
+            if (existingFile && existingFile.sha) {
+                sha = existingFile.sha;
+            }
+        } catch (e) {
+        }
+
+        const body = {
+            message: `Upload ${fileName} via Web Notepad`,
+            content: base64Content
+        };
+        if (sha) body.sha = sha;
+
+        const result = await githubRequest(fileName, 'PUT', body);
+        
+        indicator.textContent = "";
+        
+        if (result) {
+            showStatus(`Successfully saved ${fileName}!`, 'success');
+            await loadImages();
+            
+            const newFile = filesCache.find(f => f.name === fileName);
+            if(newFile) displayImage(newFile);
+        } else {
+            showStatus("Upload failed.", "error");
+        }
+    }
+
+</script>
+
+</body>
+</html>
